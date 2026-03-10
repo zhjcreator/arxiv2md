@@ -15,6 +15,11 @@ DEFAULT_OUTPUT_FILE = "digest.txt"
 
 def main() -> None:
     """Run the CLI entry point for arXiv ingestion."""
+    # Ensure stdout can handle Unicode (e.g. accented author names) on Windows,
+    # where the default console encoding is often cp1252.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     args = _parse_args()
     try:
         asyncio.run(_async_main(args))
@@ -39,6 +44,7 @@ async def _async_main(args: argparse.Namespace) -> None:
         remove_inline_citations=args.remove_inline_citations,
         section_filter_mode=args.section_filter_mode,
         sections=sections,
+        include_frontmatter=args.frontmatter,
     )
 
     output_text = _format_output(
@@ -46,6 +52,7 @@ async def _async_main(args: argparse.Namespace) -> None:
         result.sections_tree,
         result.content,
         include_tree=args.include_tree,
+        frontmatter=result.frontmatter,
     )
     output_target = args.output if args.output is not None else DEFAULT_OUTPUT_FILE
 
@@ -58,17 +65,26 @@ async def _async_main(args: argparse.Namespace) -> None:
         Path(output_target).write_text(output_text, encoding="utf-8")
         print(f"Output written to: {output_target}")
         print("\nSummary:")
-        # Handle Unicode characters that Windows console may not support
-        try:
-            print(result.summary)
-        except UnicodeEncodeError:
-            print(result.summary.encode("utf-8", errors="replace").decode("utf-8"))
+        print(result.summary)
 
 
-def _format_output(summary: str, tree: str, content: str, *, include_tree: bool) -> str:
+def _format_output(
+    summary: str,
+    tree: str,
+    content: str,
+    *,
+    include_tree: bool,
+    frontmatter: str | None = None,
+) -> str:
+    parts: list[str] = []
+    if frontmatter:
+        parts.append(frontmatter)
+    else:
+        parts.append(summary)
     if include_tree:
-        return f"{summary}\n\n{tree}\n\n{content}".strip()
-    return f"{summary}\n\n{content}".strip()
+        parts.append(tree)
+    parts.append(content)
+    return "\n\n".join(parts).strip()
 
 
 def _collect_sections(sections_csv: str | None, section_list: list[str] | None) -> list[str]:
@@ -130,6 +146,11 @@ def _parse_args() -> argparse.Namespace:
         "--include-tree",
         action="store_true",
         help="Include the section tree before the Markdown content.",
+    )
+    parser.add_argument(
+        "--frontmatter",
+        action="store_true",
+        help="Prepend YAML frontmatter with paper metadata (title, authors, URL, etc.).",
     )
     return parser.parse_args()
 
