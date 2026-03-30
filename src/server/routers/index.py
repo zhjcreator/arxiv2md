@@ -28,10 +28,9 @@ async def home(request: Request) -> HTMLResponse:
 
     """
     context = {
-        "request": request,
         "examples": EXAMPLE_REPOS,
         "default_max_file_size": 243,
     }
     context.update(get_version_info())
 
-    return templates.TemplateResponse("arxiv.jinja", context)
+    return templates.TemplateResponse(request, "arxiv.jinja", context)

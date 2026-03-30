@@ -64,11 +64,10 @@ async def catch_all(request: Request, full_path: str) -> HTMLResponse:
     arxiv_url = _path_to_arxiv_url(full_path)
 
     context = {
-        "request": request,
         "repo_url": arxiv_url,
         "examples": EXAMPLE_REPOS,
         "default_max_file_size": 243,
     }
     context.update(get_version_info())
 
-    return templates.TemplateResponse("arxiv.jinja", context)
+    return templates.TemplateResponse(request, "arxiv.jinja", context)

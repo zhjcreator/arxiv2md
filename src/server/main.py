@@ -90,7 +90,7 @@ async def robots() -> FileResponse:
     - **FileResponse**: The ``robots.txt`` file located in the static directory
 
     """
-    return FileResponse("static/robots.txt")
+    return FileResponse(static_dir / "robots.txt")
 
 
 @app.get("/llms.txt")
@@ -106,7 +106,7 @@ async def llm_txt() -> FileResponse:
     - **FileResponse**: The ``llms.txt`` file located in the static directory
 
     """
-    return FileResponse("static/llms.txt")
+    return FileResponse(static_dir / "llms.txt")
 
 
 @app.get("/api", include_in_schema=True)
