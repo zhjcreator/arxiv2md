@@ -71,4 +71,4 @@ async def catch_all(request: Request, full_path: str) -> HTMLResponse:
     }
     context.update(get_version_info())
 
-    return templates.TemplateResponse("arxiv.jinja", context)
+    return templates.TemplateResponse(name="arxiv.jinja", context=context)

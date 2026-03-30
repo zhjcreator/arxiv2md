@@ -34,4 +34,4 @@ async def home(request: Request) -> HTMLResponse:
     }
     context.update(get_version_info())
 
-    return templates.TemplateResponse("arxiv.jinja", context)
+    return templates.TemplateResponse(name="arxiv.jinja", context=context)
