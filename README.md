@@ -46,6 +46,9 @@ arxiv2md 2501.11120v1 --remove-refs --remove-toc -o -
 
 # Include YAML frontmatter with paper metadata
 arxiv2md 2501.11120v1 --frontmatter -o paper.md
+
+# Include figures as Markdown image syntax ![alt](url) with absolute arXiv URLs
+arxiv2md 2501.11120v1 --include-images -o paper.md
 ```
 
 ### REST API
