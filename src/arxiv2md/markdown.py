@@ -375,18 +375,43 @@ def _serialize_figure(figure: Tag, *, remove_inline_citations: bool = False, ima
             lines.append(f"Figure: {caption}")
         if src:
             image_label = alt or "Image"
-            if image_base_url:
-                if src.startswith(("http://", "https://")):
-                    full_url = src
-                elif src.startswith("/"):
-                    full_url = f"https://arxiv.org{src}"
-                else:
-                    full_url = f"{image_base_url}{src}"
+            full_url = _resolve_image_url(src, image_base_url)
+            if full_url:
                 lines.append(f"![{image_label}]({full_url})")
             else:
                 lines.append(f"{image_label}: {src}")
 
     return "\n".join(lines).strip()
+
+
+def _resolve_image_url(src: str, image_base_url: str | None) -> str | None:
+    """Resolve an image src to a full URL.
+
+    ArXiv HTML pages may use relative paths that include the versioned ID
+    (e.g. "2604.05060v1/x1.png"). We extract that versioned ID to build the
+    correct absolute URL so the image is accessible.
+    """
+    if not image_base_url:
+        return None
+
+    if src.startswith(("http://", "https://")):
+        return src
+
+    if src.startswith("/"):
+        return f"https://arxiv.org{src}"
+
+    # Relative path: extract versioned arXiv ID from the first path segment
+    # (e.g. "2604.05060v1/x1.png" -> "2604.05060v1")
+    first_segment = src.split("/")[0]
+    if re.match(r"\d{4}\.\d{4,5}v\d+", first_segment):
+        # ArXiv HTML uses versioned relative paths (e.g. "2604.05060v1/x1.png").
+        # The CDN resolves them against the versioned URL, not the non-versioned one.
+        # Correct: https://arxiv.org/html/{versioned_id}/{rest_of_path}
+        rest = "/".join(src.split("/")[1:])  # everything after the versioned ID
+        return f"https://arxiv.org/html/{first_segment}/{rest}" if rest else f"https://arxiv.org/html/{first_segment}/"
+
+    # Fallback: append relative path to base
+    return f"{image_base_url.rstrip('/')}/{src}"
 
 
 def _normalize_text(text: str) -> str:

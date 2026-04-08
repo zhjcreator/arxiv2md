@@ -43,7 +43,6 @@ async def _async_main(args: argparse.Namespace) -> None:
         remove_toc=args.remove_toc,
         remove_inline_citations=args.remove_inline_citations,
         include_images=args.include_images,
-        html_base_url=query.html_url,
         section_filter_mode=args.section_filter_mode,
         sections=sections,
         include_frontmatter=args.frontmatter,

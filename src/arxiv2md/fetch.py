@@ -28,33 +28,39 @@ async def fetch_arxiv_html(
     version: str | None,
     use_cache: bool = True,
     ar5iv_url: str | None = None,
-) -> str:
-    """Fetch arXiv HTML and cache it locally.
+) -> tuple[str, str]:
+    """Fetch arXiv HTML and cache it locally. Returns (html_text, final_url).
 
     Tries html_url first (arxiv.org), then falls back to ar5iv_url if 404.
+    final_url is the URL after following all redirects.
     """
     cache_dir = _cache_dir_for(arxiv_id, version)
     html_path = cache_dir / "source.html"
 
     if use_cache and _is_cache_fresh(html_path):
-        return html_path.read_text(encoding="utf-8")
+        html_text = html_path.read_text(encoding="utf-8")
+        final_url_path = cache_dir / "final_url.txt"
+        final_url = final_url_path.read_text().strip() if final_url_path.exists() else html_url
+        return html_text, final_url
 
     # Try primary URL (arxiv.org) first
     try:
-        html_text = await _fetch_with_retries(html_url)
+        html_text, final_url = await _fetch_with_retries(html_url)
         evict_if_needed()
         cache_dir.mkdir(parents=True, exist_ok=True)
         html_path.write_text(html_text, encoding="utf-8")
-        return html_text
+        (cache_dir / "final_url.txt").write_text(final_url)
+        return html_text, final_url
     except RuntimeError as primary_error:
         # If we got 404 and have ar5iv fallback, try it
         if ar5iv_url and "does not have an HTML version" in str(primary_error):
             try:
-                html_text = await _fetch_with_retries(ar5iv_url)
+                html_text, final_url = await _fetch_with_retries(ar5iv_url)
                 evict_if_needed()
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 html_path.write_text(html_text, encoding="utf-8")
-                return html_text
+                (cache_dir / "final_url.txt").write_text(final_url)
+                return html_text, final_url
             except Exception:
                 # If ar5iv also fails, raise the original error
                 pass
@@ -62,7 +68,8 @@ async def fetch_arxiv_html(
         raise primary_error
 
 
-async def _fetch_with_retries(url: str) -> str:
+async def _fetch_with_retries(url: str) -> tuple[str, str]:
+    """Fetch HTML from URL and return (html_text, final_url) after redirects."""
     timeout = httpx.Timeout(ARXIV2MD_FETCH_TIMEOUT_S)
     headers = {"User-Agent": ARXIV2MD_USER_AGENT}
     last_exc: Exception | None = None
@@ -85,7 +92,7 @@ async def _fetch_with_retries(url: str) -> str:
             else:
                 response.raise_for_status()
                 _ensure_html_response(response)
-                return response.text
+                return response.text, str(response.url)
         except (httpx.RequestError, httpx.HTTPStatusError, RuntimeError) as exc:
             last_exc = exc
 

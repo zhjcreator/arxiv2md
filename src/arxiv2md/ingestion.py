@@ -23,7 +23,6 @@ async def ingest_paper(
     remove_toc: bool,
     remove_inline_citations: bool = False,
     include_images: bool = False,
-    html_base_url: str | None = None,
     section_filter_mode: str,
     sections: list[str],
     include_frontmatter: bool = False,
@@ -36,7 +35,7 @@ async def ingest_paper(
         If True, completely remove inline citation links from the output.
         If False (default), citation URLs are stripped but text is kept.
     """
-    html = await fetch_arxiv_html(html_url, arxiv_id=arxiv_id, version=version, use_cache=True, ar5iv_url=ar5iv_url)
+    html, final_url = await fetch_arxiv_html(html_url, arxiv_id=arxiv_id, version=version, use_cache=True, ar5iv_url=ar5iv_url)
     parsed = parse_arxiv_html(html)
 
     filtered_sections = filter_sections(parsed.sections, mode=section_filter_mode, selected=sections)
@@ -50,9 +49,11 @@ async def ingest_paper(
     else:  # include mode
         include_abstract = not sections or _ABSTRACT_TITLE in selected_lower
 
+    # Use the final URL (after redirects) as image base URL.
+    resolved_base_url = final_url if include_images else None
+
     for section in filtered_sections:
-        image_base_url = f"{html_base_url.rstrip('/')}/" if include_images and html_base_url else None
-        _populate_section_markdown(section, remove_inline_citations=remove_inline_citations, image_base_url=image_base_url)
+        _populate_section_markdown(section, remove_inline_citations=remove_inline_citations, image_base_url=resolved_base_url)
 
     result = format_paper(
         arxiv_id=arxiv_id,
